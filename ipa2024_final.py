@@ -18,6 +18,7 @@ import ansible_final
 # 2. Assign the Webex access token to the variable ACCESS_TOKEN using environment variables.
 
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
+last_method = None
 
 # print("Current working directory:", os.getcwd())
 # print("ACCESS_TOKEN value:", repr(ACCESS_TOKEN))
@@ -27,6 +28,9 @@ ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 
 # Defines a variable that will hold the roomId
 roomIdToGetMessages = (os.getenv("roomIdToGetMessages"))
+
+last_method = None
+
 
 while True:
     # always add 1 second of delay to the loop to not go over a rate limit of API calls
@@ -76,11 +80,6 @@ while True:
 
     # check if the text of the message starts with the magic character "/" followed by your studentID and a space and followed by a command name
     #  e.g.  "/66070123 create"
-
-
-    method = None
-    methods = ["restconf", "netconf"]
-
     if message.startswith("/" + "66070112" + " "):
 
         # extract the command
@@ -90,55 +89,79 @@ while True:
 # 5. Complete the logic for each command
 
         attachment_path = None
+        responseMessage = None
         parts = command.split()
-        
-        # Check if IP is specified
-        ip = None
-        cmd = command
-        if parts:
-            try:
-                ipaddress.IPv4Address(parts[0])
-                ip = parts[0]
-                cmd = " ".join(parts[1:]) if len(parts) > 1 else ""
-            except:
-                pass
 
-        if cmd == "restconf":
-            responseMessage = "Ok: restconf"
-            method = methods[0]
-        elif cmd == "netconf":
-            responseMessage = "Ok: netconf"
-            method = methods[1]
+        method = None
+        ip = None
+
+        if parts:
+            first_token = parts[0].lower()
+            if first_token in {"restconf", "netconf"}:
+                method = first_token
+                last_method = method
+                parts = parts[1:]
+            else:
+                method = last_method
         else:
+            responseMessage = "Error: No command provided."
+
+        if method and not parts:
+            responseMessage = f"Ok: {method}"
+
+        if responseMessage is None and not method:
             responseMessage = "Error: No method is specified."
 
-        if method == "restconf":
-            if ip:
-                restconf_final.api_url = f"https://{ip}/restconf/"
-                print(f"Set api_url to: {restconf_final.api_url}")
-            
-            if cmd == "create":
-                responseMessage = restconf_final.create()  
-            elif cmd == "delete":
-                responseMessage = restconf_final.delete()
-            elif cmd == "enable":
-                responseMessage = restconf_final.enable()
-            elif cmd == "disable":
-                responseMessage = restconf_final.disable()
-            elif cmd == "status":
-                responseMessage = restconf_final.status()
-            elif cmd == "gigabit_status":
-                responseMessage = netmiko_final.gigabit_status()
-            elif cmd == "showrun":
-                showrun_result = ansible_final.showrun()
-                response_lines = [showrun_result.get("message", "")]
-                if showrun_result.get("output"):
-                    response_lines.append(showrun_result["output"])
-                responseMessage = "\n".join(line for line in response_lines if line)
-                if showrun_result.get("success"):
-                    attachment_path = showrun_result.get("file_path")
+        if responseMessage is None and method:
+            if parts:
+                try:
+                    ipaddress.IPv4Address(parts[0])
+                except ipaddress.AddressValueError:
+                    pass
+                else:
+                    ip = parts[0]
+                    parts = parts[1:]
+
+            if not parts:
+                responseMessage = "Error: No command provided."
             else:
-                responseMessage = "Error: No command or unknown command"
+                action = parts[0].lower()
+
+                if method == "restconf":
+                    restconf_actions = {"create", "delete", "enable", "disable", "status"}
+                    if action in restconf_actions:
+                        if not ip:
+                            responseMessage = "Error: IP address required for restconf command."
+                        else:
+                            restconf_final.api_url = f"https://{ip}/restconf/"
+                            print(f"Set api_url to: {restconf_final.api_url}")
+                            if action == "create":
+                                responseMessage = restconf_final.create()
+                            elif action == "delete":
+                                responseMessage = restconf_final.delete()
+                            elif action == "enable":
+                                responseMessage = restconf_final.enable()
+                            elif action == "disable":
+                                responseMessage = restconf_final.disable()
+                            elif action == "status":
+                                responseMessage = restconf_final.status()
+                    elif action == "gigabit_status":
+                        responseMessage = netmiko_final.gigabit_status()
+                    elif action == "showrun":
+                        showrun_result = ansible_final.showrun()
+                        response_lines = [showrun_result.get("message", "")]
+                        if showrun_result.get("output"):
+                            response_lines.append(showrun_result["output"])
+                        responseMessage = "\n".join(line for line in response_lines if line)
+                        if showrun_result.get("success"):
+                            attachment_path = showrun_result.get("file_path")
+                    else:
+                        responseMessage = "Error: No command or unknown command"
+                elif method == "netconf":
+                    responseMessage = "NETCONF commands are not implemented yet."
+
+        if responseMessage is None:
+            responseMessage = "Error: Unable to process command."
         
 # 6. Complete the code to post the message to the Webex Teams room.
 
