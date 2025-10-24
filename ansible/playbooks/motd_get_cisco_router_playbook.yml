@@ -1,0 +1,14 @@
+- name: GET ROUTER MOTD BANNER
+  hosts: cisco_ios
+  gather_facts: false
+
+  tasks:
+    - name: Retrieve MOTD banner
+      cisco.ios.ios_command:
+        commands:
+          - show banner motd
+      register: motd_output
+
+    - name: Report MOTD banner
+      ansible.builtin.debug:
+        msg: "{{ motd_output.stdout[0] | default('') }}"

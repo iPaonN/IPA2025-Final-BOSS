@@ -94,17 +94,7 @@ while True:
         if not tokens:
             responseMessage = "Error: No command provided."
         else:
-            special_commands = {"showrun", "gigabit_status"}
-
-            def find_first_ip(sequence):
-                for value in sequence:
-                    try:
-                        ipaddress.IPv4Address(value)
-                    except ipaddress.AddressValueError:
-                        continue
-                    else:
-                        return value
-                return None
+            special_commands = {"showrun", "gigabit_status", "motd"}
 
             action = None
             action_index = None
@@ -118,23 +108,44 @@ while True:
 
             if action in special_commands:
                 handled_special = True
-                before_tokens = tokens[:action_index] if action_index is not None else []
-                after_tokens = tokens[action_index + 1 :] if action_index is not None else []
-                ip = find_first_ip(before_tokens) or find_first_ip(after_tokens)
+                ip = None
+                remaining_tokens = []
 
-                if action == "showrun":
+                for idx, token in enumerate(tokens):
+                    if idx == action_index:
+                        continue
+
+                    if ip is None:
+                        try:
+                            ipaddress.IPv4Address(token)
+                        except ipaddress.AddressValueError:
+                            remaining_tokens.append(token)
+                        else:
+                            ip = token
+                        continue
+
+                    remaining_tokens.append(token)
+
+                if action == "gigabit_status":
+                    responseMessage = netmiko_final.gigabit_status()
+                elif action == "showrun":
                     if not ip:
                         responseMessage = "Error: IP address required for showrun command."
+                    elif remaining_tokens:
+                        responseMessage = "Error: Unexpected arguments for showrun command."
                     else:
                         showrun_result = ansible_final.showrun(ip)
-                        response_lines = [showrun_result.get("message", "")]
-                        if showrun_result.get("output"):
-                            response_lines.append(showrun_result["output"])
-                        responseMessage = "\n".join(line for line in response_lines if line)
+                        responseMessage = showrun_result.get("message", "")
                         if showrun_result.get("success"):
                             attachment_path = showrun_result.get("file_path")
-                elif action == "gigabit_status":
-                    responseMessage = netmiko_final.gigabit_status()
+                elif action == "motd":
+                    if not ip:
+                        responseMessage = "Error: IP address required for motd command."
+                    else:
+                        motd_tokens = [token for token in remaining_tokens if token != ip]
+                        motd_text = " ".join(motd_tokens).strip()
+                        motd_result = ansible_final.motd(ip, motd_text or None)
+                        responseMessage = motd_result.get("message", "")
 
             if not handled_special:
                 tokens_copy = tokens[:]
