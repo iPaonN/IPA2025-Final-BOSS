@@ -148,13 +148,16 @@ while True:
                     elif action == "gigabit_status":
                         responseMessage = netmiko_final.gigabit_status()
                     elif action == "showrun":
-                        showrun_result = ansible_final.showrun()
-                        response_lines = [showrun_result.get("message", "")]
-                        if showrun_result.get("output"):
-                            response_lines.append(showrun_result["output"])
-                        responseMessage = "\n".join(line for line in response_lines if line)
-                        if showrun_result.get("success"):
-                            attachment_path = showrun_result.get("file_path")
+                        if not ip:
+                            responseMessage = "Error: IP address required for showrun command."
+                        else:
+                            showrun_result = ansible_final.showrun(ip)
+                            response_lines = [showrun_result.get("message", "")]
+                            if showrun_result.get("output"):
+                                response_lines.append(showrun_result["output"])
+                            responseMessage = "\n".join(line for line in response_lines if line)
+                            if showrun_result.get("success"):
+                                attachment_path = showrun_result.get("file_path")
                     else:
                         responseMessage = "Error: No command or unknown command"
                 elif method == "netconf":
