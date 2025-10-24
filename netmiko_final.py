@@ -1,6 +1,10 @@
 import netmiko
 from pprint import pprint
 import os
+from pathlib import Path
+from typing import Optional
+
+import textfsm
 
 device_ip = os.getenv("DEVICE_IP")
 username = os.getenv("userNAME")
@@ -12,6 +16,52 @@ device_params = {
     "username": username,
     "password": password,
 }
+
+BASE_DIR = Path(__file__).resolve().parent
+TEXTFSM_TEMPLATE_DIR = BASE_DIR / "textfsm_templates"
+MOTD_TEMPLATE = TEXTFSM_TEMPLATE_DIR / "cisco_ios_show_banner_motd.template"
+
+
+def _build_device_params(target_ip: Optional[str] = None) -> dict:
+    params = device_params.copy()
+    if target_ip:
+        params["ip"] = target_ip
+    if not params.get("ip"):
+        raise ValueError("Device IP not provided for Netmiko connection.")
+    if not params.get("username") or not params.get("password"):
+        raise ValueError("Device credentials are not set for Netmiko connection.")
+    return params
+
+
+def _parse_motd(output: str) -> str:
+    text = (output or "").strip()
+    if not text:
+        return ""
+
+    if not MOTD_TEMPLATE.exists():
+        return text
+
+    try:
+        with MOTD_TEMPLATE.open() as template_file:
+            fsm = textfsm.TextFSM(template_file)
+            parsed_rows = fsm.ParseText(text)
+    except Exception as exc:
+        print(f"TextFSM MOTD parse error: {exc}")
+        return text
+
+    if not parsed_rows or "BANNER_LINE" not in fsm.header:
+        return text
+
+    col_idx = fsm.header.index("BANNER_LINE")
+    lines = [row[col_idx].strip() for row in parsed_rows if row[col_idx].strip()]
+    return "\n".join(lines).strip()
+
+
+def motd_banner(target_ip: Optional[str] = None) -> str:
+    params = _build_device_params(target_ip)
+    with netmiko.ConnectHandler(**params) as ssh:
+        output = ssh.send_command("show banner motd")
+    return _parse_motd(output)
 
 
 def gigabit_status():
