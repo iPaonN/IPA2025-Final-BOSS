@@ -237,6 +237,6 @@ def motd(target_ip: Optional[str] = None, banner_message: Optional[str] = None):
 
     return {
         "success": False,
-        "message": "Error: Unable to read MOTD.",
+        "message": "Error: No MOTD configured.",
         "file_path": None,
     }
