@@ -1,0 +1,18 @@
+---
+- name: Sample playbook for CSR1kv automation
+  hosts: cisco_ios
+  gather_facts: no
+  collections:
+    - cisco.ios
+  vars:
+    cli_command: show ip interface brief
+  tasks:
+    - name: Run CLI command against the router
+      cisco.ios.ios_command:
+        commands:
+          - "{{ cli_command }}"
+      register: command_result
+
+    - name: Display command output
+      debug:
+        var: command_result.stdout_lines

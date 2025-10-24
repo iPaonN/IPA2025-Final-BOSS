@@ -1,0 +1,25 @@
+- name: AUTOMATIC BACKUP OF RUNNING-CONFIG
+  hosts: cisco_ios
+  gather_facts: false
+  vars:
+    backup_dir: "{{ playbook_dir }}/../backups"
+ 
+  tasks:
+   - name: Ensure backup directory exists
+     ansible.builtin.file:
+       path: "{{ backup_dir }}"
+       state: directory
+       mode: "0755"
+     delegate_to: localhost
+
+   - name: DISPLAYING THE RUNNING-CONFIG
+     cisco.ios.ios_command:
+       commands:
+         - show running-config
+     register: config
+ 
+   - name: SAVE OUTPUT TO ../backups/
+     ansible.builtin.copy:
+       content: "{{ config.stdout[0] }}"
+       dest: "{{ backup_dir }}/show_run_66070112_{{ inventory_hostname }}.txt"
+     delegate_to: localhost

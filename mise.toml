@@ -1,0 +1,5 @@
+[tools]
+ansible = "latest"
+ansible-core = "latest"
+pipx = "latest"
+python = "3.12"
