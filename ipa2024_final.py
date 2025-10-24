@@ -11,6 +11,7 @@ import time
 import json
 import ipaddress
 import restconf_final
+import netconf_final
 import netmiko_final
 import ansible_final
 
@@ -176,11 +177,13 @@ while True:
                     else:
                         action = tokens_copy.pop(0).lower()
 
+                        restconf_actions = {"create", "delete", "enable", "disable", "status"}
+                        netconf_actions = restconf_actions
+
                         if method == "restconf":
-                            restconf_actions = {"create", "delete", "enable", "disable", "status"}
                             if action in restconf_actions:
                                 if not ip:
-                                    responseMessage = "Error: IP address required for restconf command."
+                                    responseMessage = "Error: No IP specified."
                                 else:
                                     restconf_final.api_url = f"https://{ip}/restconf/"
                                     print(f"Set api_url to: {restconf_final.api_url}")
@@ -197,7 +200,22 @@ while True:
                             else:
                                 responseMessage = "Error: No command or unknown command"
                         elif method == "netconf":
-                            responseMessage = "NETCONF commands are not implemented yet."
+                            if action in netconf_actions:
+                                if not ip:
+                                    responseMessage = "Error: No IP specified."
+                                else:
+                                    if action == "create":
+                                        responseMessage = netconf_final.create(ip)
+                                    elif action == "delete":
+                                        responseMessage = netconf_final.delete(ip)
+                                    elif action == "enable":
+                                        responseMessage = netconf_final.enable(ip)
+                                    elif action == "disable":
+                                        responseMessage = netconf_final.disable(ip)
+                                    elif action == "status":
+                                        responseMessage = netconf_final.status(ip)
+                            else:
+                                responseMessage = "Error: No command or unknown command"
 
             if responseMessage is None:
                 responseMessage = "Error: Unable to process command."
