@@ -29,8 +29,6 @@ last_method = None
 # Defines a variable that will hold the roomId
 roomIdToGetMessages = (os.getenv("roomIdToGetMessages"))
 
-last_method = None
-
 
 while True:
     # always add 1 second of delay to the loop to not go over a rate limit of API calls
@@ -90,81 +88,119 @@ while True:
 
         attachment_path = None
         responseMessage = None
-        parts = command.split()
+        tokens = command.strip().split()
 
-        method = None
-        ip = None
-
-        if parts:
-            first_token = parts[0].lower()
-            if first_token in {"restconf", "netconf"}:
-                method = first_token
-                last_method = method
-                parts = parts[1:]
-            else:
-                method = last_method
-        else:
+        if not tokens:
             responseMessage = "Error: No command provided."
+        else:
+            special_commands = {"showrun", "gigabit_status"}
 
-        if method and not parts:
-            responseMessage = f"Ok: {method}"
-
-        if responseMessage is None and not method:
-            responseMessage = "Error: No method is specified."
-
-        if responseMessage is None and method:
-            if parts:
-                try:
-                    ipaddress.IPv4Address(parts[0])
-                except ipaddress.AddressValueError:
-                    pass
-                else:
-                    ip = parts[0]
-                    parts = parts[1:]
-
-            if not parts:
-                responseMessage = "Error: No command provided."
-            else:
-                action = parts[0].lower()
-
-                if method == "restconf":
-                    restconf_actions = {"create", "delete", "enable", "disable", "status"}
-                    if action in restconf_actions:
-                        if not ip:
-                            responseMessage = "Error: IP address required for restconf command."
-                        else:
-                            restconf_final.api_url = f"https://{ip}/restconf/"
-                            print(f"Set api_url to: {restconf_final.api_url}")
-                            if action == "create":
-                                responseMessage = restconf_final.create()
-                            elif action == "delete":
-                                responseMessage = restconf_final.delete()
-                            elif action == "enable":
-                                responseMessage = restconf_final.enable()
-                            elif action == "disable":
-                                responseMessage = restconf_final.disable()
-                            elif action == "status":
-                                responseMessage = restconf_final.status()
-                    elif action == "gigabit_status":
-                        responseMessage = netmiko_final.gigabit_status()
-                    elif action == "showrun":
-                        if not ip:
-                            responseMessage = "Error: IP address required for showrun command."
-                        else:
-                            showrun_result = ansible_final.showrun(ip)
-                            response_lines = [showrun_result.get("message", "")]
-                            if showrun_result.get("output"):
-                                response_lines.append(showrun_result["output"])
-                            responseMessage = "\n".join(line for line in response_lines if line)
-                            if showrun_result.get("success"):
-                                attachment_path = showrun_result.get("file_path")
+            def find_first_ip(sequence):
+                for value in sequence:
+                    try:
+                        ipaddress.IPv4Address(value)
+                    except ipaddress.AddressValueError:
+                        continue
                     else:
-                        responseMessage = "Error: No command or unknown command"
-                elif method == "netconf":
-                    responseMessage = "NETCONF commands are not implemented yet."
+                        return value
+                return None
 
-        if responseMessage is None:
-            responseMessage = "Error: Unable to process command."
+            action = None
+            action_index = None
+            for idx, token in enumerate(tokens):
+                if token.lower() in special_commands:
+                    action = token.lower()
+                    action_index = idx
+                    break
+
+            handled_special = False
+
+            if action in special_commands:
+                handled_special = True
+                before_tokens = tokens[:action_index] if action_index is not None else []
+                after_tokens = tokens[action_index + 1 :] if action_index is not None else []
+                ip = find_first_ip(before_tokens) or find_first_ip(after_tokens)
+
+                if action == "showrun":
+                    if not ip:
+                        responseMessage = "Error: IP address required for showrun command."
+                    else:
+                        showrun_result = ansible_final.showrun(ip)
+                        response_lines = [showrun_result.get("message", "")]
+                        if showrun_result.get("output"):
+                            response_lines.append(showrun_result["output"])
+                        responseMessage = "\n".join(line for line in response_lines if line)
+                        if showrun_result.get("success"):
+                            attachment_path = showrun_result.get("file_path")
+                elif action == "gigabit_status":
+                    responseMessage = netmiko_final.gigabit_status()
+
+            if not handled_special:
+                tokens_copy = tokens[:]
+                ip = None
+                method = None
+
+                if tokens_copy and tokens_copy[0].lower() in {"restconf", "netconf"}:
+                    method = tokens_copy.pop(0).lower()
+                    last_method = method
+                else:
+                    method = last_method
+
+                if tokens_copy:
+                    try:
+                        ipaddress.IPv4Address(tokens_copy[0])
+                    except ipaddress.AddressValueError:
+                        pass
+                    else:
+                        ip = tokens_copy.pop(0)
+
+                if method is None and tokens_copy and tokens_copy[0].lower() in {"restconf", "netconf"}:
+                    method = tokens_copy.pop(0).lower()
+                    last_method = method
+
+                if method and not tokens_copy and ip is None:
+                    responseMessage = f"Ok: {method}"
+                elif method is None:
+                    responseMessage = "Error: No method is specified."
+                else:
+                    if ip is None and tokens_copy:
+                        try:
+                            ipaddress.IPv4Address(tokens_copy[0])
+                        except ipaddress.AddressValueError:
+                            pass
+                        else:
+                            ip = tokens_copy.pop(0)
+
+                    if not tokens_copy:
+                        responseMessage = "Error: No command provided."
+                    else:
+                        action = tokens_copy.pop(0).lower()
+
+                        if method == "restconf":
+                            restconf_actions = {"create", "delete", "enable", "disable", "status"}
+                            if action in restconf_actions:
+                                if not ip:
+                                    responseMessage = "Error: IP address required for restconf command."
+                                else:
+                                    restconf_final.api_url = f"https://{ip}/restconf/"
+                                    print(f"Set api_url to: {restconf_final.api_url}")
+                                    if action == "create":
+                                        responseMessage = restconf_final.create()
+                                    elif action == "delete":
+                                        responseMessage = restconf_final.delete()
+                                    elif action == "enable":
+                                        responseMessage = restconf_final.enable()
+                                    elif action == "disable":
+                                        responseMessage = restconf_final.disable()
+                                    elif action == "status":
+                                        responseMessage = restconf_final.status()
+                            else:
+                                responseMessage = "Error: No command or unknown command"
+                        elif method == "netconf":
+                            responseMessage = "NETCONF commands are not implemented yet."
+
+            if responseMessage is None:
+                responseMessage = "Error: Unable to process command."
         
 # 6. Complete the code to post the message to the Webex Teams room.
 
