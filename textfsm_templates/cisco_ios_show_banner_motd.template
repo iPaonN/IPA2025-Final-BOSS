@@ -1,0 +1,5 @@
+Value BANNER_LINE (.+)
+
+Start
+  ^\s*$$ -> Continue
+  ^${BANNER_LINE}\s*$$ -> Record

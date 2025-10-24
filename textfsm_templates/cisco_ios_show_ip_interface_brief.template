@@ -1,0 +1,10 @@
+Value Required INTERFACE (\S+)
+Value IP_ADDRESS (\S+)
+Value OK (\S+)
+Value METHOD (\S+)
+Value STATUS (administratively down|up|down|unknown|(?:\S+\s+\S+))
+Value PROTOCOL (up|down|(?:\S+))
+
+Start
+  ^Interface\s+IP-Address\s+OK\?\s+Method\s+Status\s+Protocol -> Capture
+  ^${INTERFACE}\s+${IP_ADDRESS}\s+${OK}\s+${METHOD}\s+${STATUS}\s+${PROTOCOL} -> Record
