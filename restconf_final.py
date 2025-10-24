@@ -54,7 +54,7 @@ def create():
 
     if(resp.status_code >= 200 and resp.status_code <= 299):
         print("STATUS OK: {}".format(resp.status_code))
-        return "Interface 66070112 created successfully."
+        return "Interface 66070112 created successfully by using Restconf."
     elif resp.status_code == 409:
         print('Cannot create: Interface loopback 66070112 {}'.format(resp.text))
         return "Cannot create: Interface loopback 66070112 : Interface 66070112 already exists."
@@ -73,10 +73,10 @@ def delete():
 
     if(resp.status_code >= 200 and resp.status_code <= 299):
         print("STATUS OK: {}".format(resp.status_code))
-        return "Interface Loopback 66070112 deleted successfully."
+        return "Interface Loopback 66070112 deleted successfully using Restconf."
     else:
         print('Error. Status Code: {}'.format(resp.status_code))
-        return "Cannot delete: Interface loopback 66070112."
+        return "Cannot delete: Interface loopback 66070112 using Restconf."
 
 def enable():
     yangConfig = {
@@ -96,10 +96,10 @@ def enable():
 
     if(resp.status_code >= 200 and resp.status_code <= 299):
         print("STATUS OK: {}".format(resp.status_code))
-        return "Interface loopback 66070112 enabled successfully."
+        return "Interface loopback 66070112 enabled successfully (check by Restconf)."
     else:
         print('Error. Status Code: {}'.format(resp.status_code))
-        return "Cannot enable : Interface loopback 66070112."
+        return "Cannot enable : Interface loopback 66070112 (check by Restconf)."
 
 
 def disable():
@@ -120,10 +120,10 @@ def disable():
 
     if(resp.status_code >= 200 and resp.status_code <= 299):
         print("STATUS OK: {}".format(resp.status_code))
-        return "Interface loopback 66070112 shutdowned successfully."
+        return "Interface loopback 66070112 shutdowned successfully (check by Restconf)."
     else:
         print('Error. Status Code: {}'.format(resp.status_code))
-        return "Cannot shutdown : Interface loopback 66070112."
+        return "Cannot shutdown : Interface loopback 66070112 (check by Restconf)."
 
 
 def status():
@@ -151,14 +151,14 @@ def status():
         oper_status = loopback.get("oper-status")
 
         if admin_status == 'up' and oper_status == 'up':
-            return "Interface loopback 66070112 is currently enabled."
+            return "Interface loopback 66070112 is currently enabled (check by Restconf)."
         elif admin_status == 'down' and oper_status == 'down':
-            return "Interface loopback 66070112 is currently disabled."
+            return "Interface loopback 66070112 is currently disabled (check by Restconf)."
         # <-- End
 
     elif(resp.status_code == 404):
         print("STATUS NOT FOUND: {}".format(resp.status_code))
-        return "No Interface loopback 66070112."
+        return "No Interface loopback 66070112 (check by Restconf)."
     else:
         print('Error. Status Code: {}'.format(resp.status_code))
-        return "Cannot get status : Interface loopback 66070112."
+        return "Cannot get status : Interface loopback 66070112 (check by Restconf)."
