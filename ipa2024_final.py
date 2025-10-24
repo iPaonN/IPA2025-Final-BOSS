@@ -9,6 +9,7 @@ import requests
 import os
 import time
 import json
+import ipaddress
 import restconf_final
 import netmiko_final
 import ansible_final
@@ -89,30 +90,46 @@ while True:
 # 5. Complete the logic for each command
 
         attachment_path = None
+        parts = command.split()
+        
+        # Check if IP is specified
+        ip = None
+        cmd = command
+        if parts:
+            try:
+                ipaddress.IPv4Address(parts[0])
+                ip = parts[0]
+                cmd = " ".join(parts[1:]) if len(parts) > 1 else ""
+            except:
+                pass
 
-        if command == "restconf":
+        if cmd == "restconf":
             responseMessage = "Ok: restconf"
             method = methods[0]
-        elif command == "netconf":
+        elif cmd == "netconf":
             responseMessage = "Ok: netconf"
             method = methods[1]
         else:
             responseMessage = "Error: No method is specified."
 
         if method == "restconf":
-            if command == "create":
+            if ip:
+                restconf_final.api_url = f"https://{ip}/restconf/"
+                print(f"Set api_url to: {restconf_final.api_url}")
+            
+            if cmd == "create":
                 responseMessage = restconf_final.create()  
-            elif command == "delete":
+            elif cmd == "delete":
                 responseMessage = restconf_final.delete()
-            elif command == "enable":
+            elif cmd == "enable":
                 responseMessage = restconf_final.enable()
-            elif command == "disable":
+            elif cmd == "disable":
                 responseMessage = restconf_final.disable()
-            elif command == "status":
+            elif cmd == "status":
                 responseMessage = restconf_final.status()
-            elif command == "gigabit_status":
+            elif cmd == "gigabit_status":
                 responseMessage = netmiko_final.gigabit_status()
-            elif command == "showrun":
+            elif cmd == "showrun":
                 showrun_result = ansible_final.showrun()
                 response_lines = [showrun_result.get("message", "")]
                 if showrun_result.get("output"):

@@ -7,7 +7,7 @@ load_dotenv()
 
 requests.packages.urllib3.disable_warnings()
 
-api_url = os.getenv("API_URL")
+api_url = os.getenv("API_URL", "")
 
 # the RESTCONF HTTP headers, including the Accept and Content-Type
 # Two YANG data formats (JSON and XML) work with RESTCONF
